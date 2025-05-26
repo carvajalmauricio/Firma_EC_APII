@@ -57,8 +57,8 @@ public class Funcion_Firmarpdf {
         PosicionY=Integer.toString(UbicacionVertical);
         Pagina=Integer.toString(pagina);
           PASSWORD=Contraseña;
-FILE = Documento; 
-ARCHIVO=Certificado;
+            FILE = Documento; 
+            ARCHIVO=Certificado;
 
           firmarDocumento(FILE);
       return true;

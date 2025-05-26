@@ -56,6 +56,45 @@ public class firmarpdf {
       
     return salida;
     }
+
+    @POST
+    @Path("/upload")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    public SalidasFirmarpdf firmarConArchivos(
+    @FormDataParam("documento") InputStream documentoStream,
+    @FormDataParam("documento") FormDataContentDisposition documentoDetail,
+    @FormDataParam("certificado") InputStream certificadoStream,
+    @FormDataParam("certificado") FormDataContentDisposition certificadoDetail,
+    @FormDataParam("contrasena") String contrasena,
+    @FormDataParam("pagina") int pagina,
+    @FormDataParam("h") int h,
+    @FormDataParam("v") int v) throws Exception {
+    
+    // Guardar archivos temporalmente
+    File tempPdf = File.createTempFile("doc_", ".pdf");
+    File tempCert = File.createTempFile("cert_", ".p12");
+    
+    try {
+        // Escribir streams a archivos temporales
+        Files.copy(documentoStream, tempPdf.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(certificadoStream, tempCert.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        
+        // Procesar firma
+        Funcion_Firmarpdf comprobar = new Funcion_Firmarpdf();
+        if (comprobar.Invocador(tempPdf.getAbsolutePath(), tempCert.getAbsolutePath(), 
+                              contrasena, pagina, h, v)) {
+            SalidasFirmarpdf resultado = new SalidasFirmarpdf();
+            // Configurar resultado
+            return resultado;
+        }
+        return null;
+    } finally {
+        // Limpiar archivos temporales
+        tempPdf.delete();
+        tempCert.delete();
+    }
+}
 }
  /*
 {
