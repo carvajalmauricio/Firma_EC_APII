@@ -1,0 +1,29 @@
+{
+  "name": "Firma_EC_API",
+  "description": "Componente para realizar y validar firmas electrónicas en documentos PDF",
+  "repository": "https://github.com/ChugaOsito/Firma_EC_API",
+  "keywords": ["java", "firma-electronica", "pdf", "rest-api", "heroku"],
+  "buildpacks": [
+    {
+      "url": "heroku/java"
+    }
+  ],
+  "addons": [],
+  "env": {
+    "JAVA_TOOL_OPTIONS": {
+      "description": "Opciones adicionales para la JVM",
+      "value": "-Xmx512m -Xms256m"
+    },
+    "MAVEN_CUSTOM_OPTS": {
+      "description": "Opciones personalizadas para Maven",
+      "value": "-DskipTests=false"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "stack": "heroku-20"
+}
