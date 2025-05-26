@@ -112,7 +112,7 @@ class OOXMLZipHelper {
                     xpath.setNamespaceContext(new NamespaceContext() {
 
                         @Override
-                        public Iterator<?> getPrefixes(final String namespaceURI) {
+                        public Iterator<String> getPrefixes(final String namespaceURI) {
                             throw new UnsupportedOperationException();
                         }
 
@@ -158,7 +158,7 @@ class OOXMLZipHelper {
                     xpath.setNamespaceContext(new NamespaceContext() {
 
                         @Override
-                        public Iterator<?> getPrefixes(final String namespaceURI) {
+                        public Iterator<String> getPrefixes(final String namespaceURI) {
                             throw new UnsupportedOperationException();
                         }
 

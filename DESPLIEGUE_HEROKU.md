@@ -23,7 +23,7 @@ He configurado tu proyecto con todos los archivos necesarios para el despliegue 
    git init
    git add .
    git commit -m "Configuración inicial para Heroku"
-   git remote add origin https://github.com/tu-usuario/Firma_EC_API.git
+   git remote add origin https://github.com/carvajalmauricio/Firma_EC_APII.git
    git push -u origin main
    ```
 
