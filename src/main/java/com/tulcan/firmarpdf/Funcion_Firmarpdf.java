@@ -52,16 +52,15 @@ public class Funcion_Firmarpdf {
     private static  String PosicionY ;
     private static  String Pagina ;
 //    private static final String FILE = "/home/mfernandez/Descargas/test/mozilla.pdf.p7m";
-      public Boolean Invocador(String Documento, String Certificado, String Contraseña,int pagina, int UbicacionHorizontal,int UbicacionVertical)throws KeyStoreException, Exception {
-        PosicionX=Integer.toString(UbicacionHorizontal);
-        PosicionY=Integer.toString(UbicacionVertical);
-        Pagina=Integer.toString(pagina);
-          PASSWORD=Contraseña;
-            FILE = Documento; 
-            ARCHIVO=Certificado;
+      public SalidasFirmarpdf Invocador(String Documento, String Certificado, String Contraseña,int pagina, int UbicacionHorizontal,int UbicacionVertical)throws KeyStoreException, Exception {
+      PosicionX=Integer.toString(UbicacionHorizontal);
+      PosicionY=Integer.toString(UbicacionVertical);
+      Pagina=Integer.toString(pagina);
+      PASSWORD=Contraseña;
+        FILE = Documento; 
+        ARCHIVO=Certificado;
 
-          firmarDocumento(FILE);
-      return true;
+      return firmarDocumento(FILE);
       }
       private static Properties parametros() throws IOException {
         //QR
@@ -126,31 +125,32 @@ public class Funcion_Firmarpdf {
         return params;
     }
 
-    private static boolean firmarDocumento(String file) throws KeyStoreException, Exception {
-        EntradasFirmarpdf entradas= new EntradasFirmarpdf();
-        SalidasFirmarpdf enviar =new SalidasFirmarpdf();
-             enviar.setDocFirmado(null);
-			enviar.setDocOriginal(null);
+    private static SalidasFirmarpdf firmarDocumento(String file) throws KeyStoreException, Exception {
+        EntradasFirmarpdf entradas = new EntradasFirmarpdf();
+        SalidasFirmarpdf resultado = new SalidasFirmarpdf();
+        
+        // Inicializar resultado con valores por defecto
+        resultado.setExitoso(false);
+        resultado.setMensaje("Proceso iniciado");
+        resultado.setDocFirmado(null);
+        resultado.setDocOriginal(null);
+        resultado.setPdfFirmadoBase64(null);
+        resultado.setNombreArchivo(null);
         
         ////// LEER PDF:
         byte[] docByteArry = DocumentoUtils.loadFile(file);
 
         // ARCHIVO
-try {
-
-     System.out.println("Contrasenia correcta");
-KeyStoreProvider ksp = new FileKeyStoreProvider(ARCHIVO);
-        KeyStore keyStore = ksp.getKeystore(PASSWORD.toCharArray());
-       }catch (Exception e) {
-
-     System.out.println("Contrasenia incorrecta");
-     entradas.setArchivop12(null);
-     entradas.setContrasena(null);
-     entradas.setDocumentopdf(null);
-     enviar.setDocFirmado(null);
-			enviar.setDocOriginal(null);
-return false;
-}
+        try {
+            System.out.println("Contrasenia correcta");
+            KeyStoreProvider ksp = new FileKeyStoreProvider(ARCHIVO);
+            KeyStore keyStore = ksp.getKeystore(PASSWORD.toCharArray());
+        } catch (Exception e) {
+            System.out.println("Contrasenia incorrecta");
+            resultado.setExitoso(false);
+            resultado.setMensaje("Contraseña incorrecta del certificado");
+            return resultado;
+        }
         KeyStoreProvider ksp = new FileKeyStoreProvider(ARCHIVO);
         KeyStore keyStore = ksp.getKeystore(PASSWORD.toCharArray());
         // TOKEN
@@ -183,8 +183,6 @@ return false;
         java.io.FileOutputStream fos = new java.io.FileOutputStream(nombreDocumento);
         System.out.println("Este es el nombre extraido");
         System.out.println(nombreDocumento);
-        enviar.setDocFirmado(nombreDocumento);
-		enviar.setDocOriginal(ARCHIVO);
         /*
 //Abrir documento
             new java.util.Timer().schedule(new java.util.TimerTask() {
@@ -204,13 +202,37 @@ return false;
             //Abrir documento
             */
         
+        // Guardar archivo firmado y convertir a Base64
         fos.write(signed);
         fos.close();
-        //Abrir documento
+        
+        // Leer el archivo firmado y convertirlo a Base64
+        try {
+            byte[] pdfFirmadoBytes = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(nombreDocumento));
+            String pdfBase64 = java.util.Base64.getEncoder().encodeToString(pdfFirmadoBytes);
+            
+            // Configurar respuesta exitosa
+            resultado.setExitoso(true);
+            resultado.setMensaje("Documento firmado exitosamente");
+            resultado.setDocFirmado(nombreDocumento);
+            resultado.setDocOriginal(ARCHIVO);
+            resultado.setPdfFirmadoBase64(pdfBase64);
+            resultado.setNombreArchivo(new File(nombreDocumento).getName());
+            
+            System.out.println("✅ PDF convertido a Base64 exitosamente. Tamaño: " + pdfBase64.length() + " caracteres");
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error al convertir PDF a Base64: " + e.getMessage());
+            resultado.setExitoso(false);
+            resultado.setMensaje("Error al convertir PDF a Base64: " + e.getMessage());
+        }
+        
+        // Limpiar variables sensibles
         entradas.setArchivop12(null);
         entradas.setContrasena(null);
         entradas.setDocumentopdf(null);
-        return true;
+        
+        return resultado;
     }
 
     private static void validarCertificado() throws IOException, KeyStoreException, Exception {

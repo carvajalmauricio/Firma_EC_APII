@@ -28,33 +28,38 @@ public class firmarpdf {
     @Produces(MediaType.APPLICATION_JSON)
     public SalidasFirmarpdf getDatos(EntradasFirmarpdf datos) throws KeyStoreException, Exception{
         
-        EntradasFirmarpdf entradas= new EntradasFirmarpdf();
-        entradas=datos;
         System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-         System.out.println(datos.getArchivop12());
-        System.out.println(datos.getDocumentopdf());
-       
-        System.out.println(datos.getPagina());
-        System.out.println(datos.getH());
-        System.out.println(datos.getV());
-        SalidasFirmarpdf firmar=new SalidasFirmarpdf();
-        Funcion_Firmarpdf comprobar=new Funcion_Firmarpdf();
-        SalidasFirmarpdf salida=null;
-       
-       
-       if(comprobar.Invocador(entradas.getDocumentopdf(), entradas.getArchivop12(), entradas.getContrasena(), entradas.getPagina(), entradas.getH(), entradas.getV() )==false){
-       
-       salida=null;
-       
-       }else{
-       salida=firmar;
-       
-       }
-       
-       
-      
-      
-    return salida;
+        // NO imprimir contraseñas por seguridad
+        System.out.println("Procesando documento PDF...");
+        System.out.println("Página: " + datos.getPagina());
+        System.out.println("Posición H: " + datos.getH());
+        System.out.println("Posición V: " + datos.getV());
+        
+        Funcion_Firmarpdf comprobar = new Funcion_Firmarpdf();
+        
+        try {
+            // Llamar al método Invocador que ahora devuelve SalidasFirmarpdf
+            SalidasFirmarpdf resultado = comprobar.Invocador(
+                datos.getDocumentopdf(), 
+                datos.getArchivop12(), 
+                datos.getContrasena(), 
+                datos.getPagina(), 
+                datos.getH(), 
+                datos.getV()
+            );
+            
+            return resultado;
+            
+        } catch (Exception e) {
+            System.err.println("Error en el proceso de firma: " + e.getMessage());
+            e.printStackTrace();
+            
+            // Devolver respuesta de error
+            SalidasFirmarpdf error = new SalidasFirmarpdf();
+            error.setExitoso(false);
+            error.setMensaje("Error interno: " + e.getMessage());
+            return error;
+        }
     }
 }
  /*
