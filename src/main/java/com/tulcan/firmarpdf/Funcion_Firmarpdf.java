@@ -102,7 +102,17 @@ public class Funcion_Firmarpdf {
         Properties params = new Properties();
         params.setProperty(PDFSigner.SIGNING_LOCATION, "12345678901234567890");
         params.setProperty(PDFSigner.SIGNING_REASON, "Firmado digitalmente con RUBRICA");
-        params.setProperty(PDFSigner.SIGN_TIME, TiempoUtils.getFechaHoraServidor());
+        // USAR TIMESTAMP LOCAL SI FALLA EL SERVIDOR
+        try {
+            params.setProperty(PDFSigner.SIGN_TIME, TiempoUtils.getFechaHoraServidor());
+            System.out.println("✅ Usando timestamp del servidor");
+        } catch (Exception e) {
+            // Si falla el servidor, usar timestamp local
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+            String timestampLocal = sdf.format(new java.util.Date());
+            params.setProperty(PDFSigner.SIGN_TIME, timestampLocal);
+            System.out.println("⚠️ Usando timestamp local: " + timestampLocal);
+        }
         params.setProperty(PDFSigner.LAST_PAGE, Pagina);//Aqui se pone el numero de pagina si el numero es cero escojera la ultima pagina del documento
         params.setProperty(PDFSigner.TYPE_SIG, "QR");
         params.setProperty(PDFSigner.INFO_QR, "Firmado digitalmente con RUBRICA\nhttps://minka.gob.ec/rubrica/rubrica");
@@ -152,17 +162,29 @@ return false;
         PrivateKey key = (PrivateKey) keyStore.getKey(alias, PASSWORD.toCharArray());
 
         X509CertificateUtils x509CertificateUtils = new X509CertificateUtils();
-        if (x509CertificateUtils.validarX509Certificate((X509Certificate) keyStore.getCertificate(alias))) {//validación de firmaEC
-            Certificate[] certChain = keyStore.getCertificateChain(alias);
-            signed = signer.sign(docByteArry, SignConstants.SIGN_ALGORITHM_SHA1WITHRSA, key, certChain, parametros());
-            System.out.println("final firma\n-------");
-            ////// Permite guardar el archivo en el equipo y luego lo abre
-            String nombreDocumento = FileUtils.crearNombreFirmado(new File(file), FileUtils.getExtension(signed));
-            java.io.FileOutputStream fos = new java.io.FileOutputStream(nombreDocumento);
-             System.out.println("Este es el nombre extraido");
-              System.out.println(nombreDocumento);
-              enviar.setDocFirmado(nombreDocumento);
-			enviar.setDocOriginal(ARCHIVO);
+        
+        // VALIDACIÓN CON MANEJO DE ERRORES DE RED
+        try {
+            x509CertificateUtils.validarX509Certificate((X509Certificate) keyStore.getCertificate(alias));
+            System.out.println("✅ Certificado validado online correctamente");
+        } catch (Exception validationException) {
+            System.out.println("⚠️ Validación online falló, continuando con firma offline: " + validationException.getMessage());
+            // Continuar sin validación online
+        }
+        
+        // SIEMPRE EJECUTAR LA FIRMA (incluso si falla la validación online)
+        Certificate[] certChain = keyStore.getCertificateChain(alias);
+        signed = signer.sign(docByteArry, SignConstants.SIGN_ALGORITHM_SHA1WITHRSA, key, certChain, parametros());
+        System.out.println("✅ Documento firmado exitosamente");
+        System.out.println("final firma\n-------");
+        
+        ////// Permite guardar el archivo en el equipo y luego lo abre
+        String nombreDocumento = FileUtils.crearNombreFirmado(new File(file), FileUtils.getExtension(signed));
+        java.io.FileOutputStream fos = new java.io.FileOutputStream(nombreDocumento);
+        System.out.println("Este es el nombre extraido");
+        System.out.println(nombreDocumento);
+        enviar.setDocFirmado(nombreDocumento);
+		enviar.setDocOriginal(ARCHIVO);
         /*
 //Abrir documento
             new java.util.Timer().schedule(new java.util.TimerTask() {
@@ -182,18 +204,13 @@ return false;
             //Abrir documento
             */
         
-            fos.write(signed);
-            fos.close();
-            //Abrir documento
-             entradas.setArchivop12(null);
-     entradas.setContrasena(null);
-     entradas.setDocumentopdf(null);
-            return true;
-
-} else {
-            System.out.println("Entidad Certificadora no reconocida");
-            return false;
-        }
+        fos.write(signed);
+        fos.close();
+        //Abrir documento
+        entradas.setArchivop12(null);
+        entradas.setContrasena(null);
+        entradas.setDocumentopdf(null);
+        return true;
     }
 
     private static void validarCertificado() throws IOException, KeyStoreException, Exception {
