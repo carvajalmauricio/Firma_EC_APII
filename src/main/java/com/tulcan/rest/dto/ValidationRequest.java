@@ -1,8 +1,6 @@
 package com.gadm.tulcan.rest.dto;
 
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 
 /**
  * DTO para solicitudes de validación de PDF
@@ -10,8 +8,6 @@ import javax.validation.constraints.Size;
 @XmlRootElement
 public class ValidationRequest {
     
-    @NotNull(message = "El documento PDF es requerido")
-    @Size(min = 1, message = "El documento PDF no puede estar vacío")
     private String documentoPdf;
     
     // Constructor vacío

@@ -4,14 +4,152 @@ import com.gadm.tulcan.rest.dto.SigningRequest;
 import com.gadm.tulcan.rest.dto.SigningResponse;
 import com.gadm.tulcan.rest.services.PdfSigningService;
 
-import javax.inject.Inject;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 /**
  * Controlador REST para operaciones de firma digital de PDFs
  * Maneja únicamente las operaciones HTTP, delegando la lógica de negocio al servicio
  */
-@Path(\"/pdf/sign\")\n@Produces(MediaType.APPLICATION_JSON)\n@Consumes(MediaType.APPLICATION_JSON)\npublic class PdfSigningController {\n    \n    private static final Logger LOGGER = Logger.getLogger(PdfSigningController.class.getName());\n    \n    @Inject\n    private PdfSigningService signingService;\n    \n    /**\n     * Endpoint para firmar un documento PDF\n     * \n     * @param request Datos de la solicitud de firma\n     * @return Respuesta con el documento firmado o error\n     */\n    @POST\n    public Response signDocument(SigningRequest request) {\n        LOGGER.info(\"[PDF_SIGNING_CONTROLLER] Recibida solicitud de firma\");\n        \n        try {\n            // Validar que la solicitud no sea nula\n            if (request == null) {\n                LOGGER.warning(\"[PDF_SIGNING_CONTROLLER] Solicitud nula recibida\");\n                SigningResponse errorResponse = SigningResponse.validationError(\"Solicitud vacía\");\n                return Response.status(Response.Status.BAD_REQUEST)\n                             .entity(errorResponse)\n                             .build();\n            }\n            \n            // Log de la solicitud (sin datos sensibles)\n            LOGGER.info(String.format(\"[PDF_SIGNING_CONTROLLER] Procesando solicitud: %s\", request.toString()));\n            \n            // Delegar al servicio\n            SigningResponse response = signingService.signDocument(request);\n            \n            // Determinar código de respuesta HTTP basado en el resultado\n            Response.Status status = determineHttpStatus(response);\n            \n            LOGGER.info(String.format(\"[PDF_SIGNING_CONTROLLER] Respuesta enviada con status: %s\", status));\n            \n            return Response.status(status)\n                         .entity(response)\n                         .build();\n                         \n        } catch (Exception e) {\n            LOGGER.severe(String.format(\"[PDF_SIGNING_CONTROLLER] Error inesperado: %s\", e.getMessage()));\n            \n            SigningResponse errorResponse = SigningResponse.serverError(\"Error interno del servidor\");\n            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)\n                         .entity(errorResponse)\n                         .build();\n        }\n    }\n    \n    /**\n     * Endpoint de información del servicio de firma\n     * \n     * @return Información básica del servicio\n     */\n    @GET\n    @Path(\"/info\")\n    @Produces(MediaType.TEXT_PLAIN)\n    public Response getServiceInfo() {\n        String info = \"Servicio de Firma Digital de PDFs\\n\" +\n                     \"Versión: 2.0\\n\" +\n                     \"Estado: Activo\\n\" +\n                     \"Formatos soportados: PDF\\n\" +\n                     \"Certificados soportados: P12, PFX\";\n        \n        return Response.ok(info).build();\n    }\n    \n    /**\n     * Endpoint de estado del servicio\n     * \n     * @return Estado actual del servicio\n     */\n    @GET\n    @Path(\"/status\")\n    public Response getServiceStatus() {\n        try {\n            // Obtener estadísticas del servicio\n            PdfSigningService.ServiceStats stats = signingService.getServiceStats();\n            \n            return Response.ok()\n                         .entity(Map.of(\n                             \"status\", \"UP\",\n                             \"service\", \"PDF Signing Service\",\n                             \"version\", \"2.0\",\n                             \"timestamp\", System.currentTimeMillis(),\n                             \"stats\", stats\n                         ))\n                         .build();\n                         \n        } catch (Exception e) {\n            LOGGER.warning(String.format(\"[PDF_SIGNING_CONTROLLER] Error obteniendo estado: %s\", e.getMessage()));\n            \n            return Response.status(Response.Status.SERVICE_UNAVAILABLE)\n                         .entity(Map.of(\n                             \"status\", \"DOWN\",\n                             \"error\", \"Service temporarily unavailable\"\n                         ))\n                         .build();\n        }\n    }\n    \n    /**\n     * Determina el código de estado HTTP apropiado basado en la respuesta del servicio\n     */\n    private Response.Status determineHttpStatus(SigningResponse response) {\n        if (response == null) {\n            return Response.Status.INTERNAL_SERVER_ERROR;\n        }\n        \n        if (response.isExitoso()) {\n            return Response.Status.OK;\n        }\n        \n        // Analizar el mensaje para determinar el tipo de error\n        String mensaje = response.getMensaje();\n        if (mensaje != null) {\n            if (mensaje.toLowerCase().contains(\"validación\") || \n                mensaje.toLowerCase().contains(\"validation\")) {\n                return Response.Status.BAD_REQUEST;\n            }\n            \n            if (mensaje.toLowerCase().contains(\"interno\") || \n                mensaje.toLowerCase().contains(\"internal\")) {\n                return Response.Status.INTERNAL_SERVER_ERROR;\n            }\n        }\n        \n        // Por defecto, error interno del servidor\n        return Response.Status.INTERNAL_SERVER_ERROR;\n    }\n}\n\n// Clase de utilidad para crear mapas (Java 8 compatible)\nclass Map {\n    public static java.util.Map<String, Object> of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4) {\n        java.util.Map<String, Object> map = new java.util.HashMap<>();\n        map.put(k1, v1);\n        map.put(k2, v2);\n        map.put(k3, v3);\n        map.put(k4, v4);\n        return map;\n    }\n    \n    public static java.util.Map<String, Object> of(String k1, Object v1, String k2, Object v2, String k3, Object v3, String k4, Object v4, String k5, Object v5) {\n        java.util.Map<String, Object> map = new java.util.HashMap<>();\n        map.put(k1, v1);\n        map.put(k2, v2);\n        map.put(k3, v3);\n        map.put(k4, v4);\n        map.put(k5, v5);\n        return map;\n    }\n    \n    public static java.util.Map<String, Object> of(String k1, Object v1, String k2, Object v2) {\n        java.util.Map<String, Object> map = new java.util.HashMap<>();\n        map.put(k1, v1);\n        map.put(k2, v2);\n        return map;\n    }\n}"
+@Path("/pdf/sign")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class PdfSigningController {
+    
+    private static final Logger LOGGER = Logger.getLogger(PdfSigningController.class.getName());
+    
+    private PdfSigningService signingService = new PdfSigningService();
+    
+    /**
+     * Endpoint para firmar un documento PDF
+     * 
+     * @param request Datos de la solicitud de firma
+     * @return Respuesta con el documento firmado o error
+     */
+    @POST
+    public Response signDocument(SigningRequest request) {
+        LOGGER.info("[PDF_SIGNING_CONTROLLER] Recibida solicitud de firma");
+        
+        try {
+            // Validar que la solicitud no sea nula
+            if (request == null) {
+                LOGGER.warning("[PDF_SIGNING_CONTROLLER] Solicitud nula recibida");
+                SigningResponse errorResponse = SigningResponse.validationError("Solicitud vacía");
+                return Response.status(Response.Status.BAD_REQUEST)
+                             .entity(errorResponse)
+                             .build();
+            }
+            
+            // Log de la solicitud (sin datos sensibles)
+            LOGGER.info(String.format("[PDF_SIGNING_CONTROLLER] Procesando solicitud: %s", request.toString()));
+            
+            // Delegar al servicio
+            SigningResponse response = signingService.signDocument(request);
+            
+            // Determinar código de respuesta HTTP basado en el resultado
+            Response.Status status = determineHttpStatus(response);
+            
+            LOGGER.info(String.format("[PDF_SIGNING_CONTROLLER] Respuesta enviada con status: %s", status));
+            
+            return Response.status(status)
+                         .entity(response)
+                         .build();
+                         
+        } catch (Exception e) {
+            LOGGER.severe(String.format("[PDF_SIGNING_CONTROLLER] Error inesperado: %s", e.getMessage()));
+            
+            SigningResponse errorResponse = SigningResponse.serverError("Error interno del servidor");
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                         .entity(errorResponse)
+                         .build();
+        }
+    }
+    
+    /**
+     * Endpoint de información del servicio de firma
+     * 
+     * @return Información básica del servicio
+     */
+    @GET
+    @Path("/info")
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response getServiceInfo() {
+        String info = "Servicio de Firma Digital de PDFs\n" +
+                     "Versión: 2.0\n" +
+                     "Estado: Activo\n" +
+                     "Formatos soportados: PDF\n" +
+                     "Certificados soportados: P12, PFX";
+        
+        return Response.ok(info).build();
+    }
+    
+    /**
+     * Endpoint de estado del servicio
+     * 
+     * @return Estado actual del servicio
+     */
+    @GET
+    @Path("/status")
+    public Response getServiceStatus() {
+        try {
+            // Obtener estadísticas del servicio
+            PdfSigningService.ServiceStats stats = signingService.getServiceStats();
+            
+            Map<String, Object> statusMap = new HashMap<>();
+            statusMap.put("status", "UP");
+            statusMap.put("service", "PDF Signing Service");
+            statusMap.put("version", "2.0");
+            statusMap.put("timestamp", System.currentTimeMillis());
+            statusMap.put("stats", stats);
+            
+            return Response.ok()
+                         .entity(statusMap)
+                         .build();
+                         
+        } catch (Exception e) {
+            LOGGER.warning(String.format("[PDF_SIGNING_CONTROLLER] Error obteniendo estado: %s", e.getMessage()));
+            
+            Map<String, Object> errorMap = new HashMap<>();
+            errorMap.put("status", "DOWN");
+            errorMap.put("error", "Service temporarily unavailable");
+            
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                         .entity(errorMap)
+                         .build();
+        }
+    }
+    
+    /**
+     * Determina el código de estado HTTP apropiado basado en la respuesta del servicio
+     */
+    private Response.Status determineHttpStatus(SigningResponse response) {
+        if (response == null) {
+            return Response.Status.INTERNAL_SERVER_ERROR;
+        }
+        
+        if (response.isExitoso()) {
+            return Response.Status.OK;
+        }
+        
+        // Analizar el mensaje para determinar el tipo de error
+        String mensaje = response.getMensaje();
+        if (mensaje != null) {
+            if (mensaje.toLowerCase().contains("validación") || 
+                mensaje.toLowerCase().contains("validation")) {
+                return Response.Status.BAD_REQUEST;
+            }
+            
+            if (mensaje.toLowerCase().contains("interno") || 
+                mensaje.toLowerCase().contains("internal")) {
+                return Response.Status.INTERNAL_SERVER_ERROR;
+            }
+        }
+        
+        // Por defecto, error interno del servidor
+        return Response.Status.INTERNAL_SERVER_ERROR;
+    }
+}

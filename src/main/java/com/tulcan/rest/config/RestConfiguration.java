@@ -14,4 +14,64 @@ import java.util.Set;
  * Configuración principal de la aplicación REST
  * Consolida toda la configuración en una sola clase
  */
-@ApplicationPath(\"/api\")\npublic class RestConfiguration extends Application {\n    \n    @Override\n    public Set<Class<?>> getClasses() {\n        Set<Class<?>> classes = new HashSet<>();\n        \n        // Registrar controladores nuevos\n        classes.add(PdfSigningController.class);\n        classes.add(PdfValidationController.class);\n        \n        // Mantener controladores legacy para compatibilidad (temporal)\n        classes.add(com.gadm.tulcan.rest.firmarpdf.firmarpdf.class);\n        classes.add(com.gadm.tulcan.rest.validarpdf.validarpdf.class);\n        \n        // Servicios de salud y monitoreo\n        classes.add(HealthCheck.class);\n        \n        // Filtros\n        classes.add(CorsFilter.class);\n        \n        return classes;\n    }\n    \n    @Override\n    public Set<Object> getSingletons() {\n        Set<Object> singletons = new HashSet<>();\n        // Aquí se pueden registrar instancias singleton si es necesario\n        return singletons;\n    }\n    \n    /**\n     * Obtiene información de la configuración de la aplicación\n     */\n    public static ApplicationInfo getApplicationInfo() {\n        return new ApplicationInfo();\n    }\n    \n    /**\n     * Clase interna para información de la aplicación\n     */\n    public static class ApplicationInfo {\n        private final String name = \"Firma EC API\";\n        private final String version = \"2.0.0\";\n        private final String description = \"API REST para firma y validación digital de documentos PDF\";\n        private final String[] supportedFormats = {\"PDF\"};\n        private final String[] supportedCertificates = {\"P12\", \"PFX\"};\n        \n        // Getters\n        public String getName() { return name; }\n        public String getVersion() { return version; }\n        public String getDescription() { return description; }\n        public String[] getSupportedFormats() { return supportedFormats; }\n        public String[] getSupportedCertificates() { return supportedCertificates; }\n        \n        @Override\n        public String toString() {\n            return String.format(\"%s v%s - %s\", name, version, description);\n        }\n    }\n}"
+@ApplicationPath("/api")
+public class RestConfiguration extends Application {
+    
+    @Override
+    public Set<Class<?>> getClasses() {
+        Set<Class<?>> classes = new HashSet<>();
+        
+        // Registrar controladores nuevos
+        classes.add(PdfSigningController.class);
+        classes.add(PdfValidationController.class);
+        
+        // Mantener controladores legacy para compatibilidad (temporal)
+        classes.add(com.gadm.tulcan.rest.firmarpdf.firmarpdf.class);
+        classes.add(com.gadm.tulcan.rest.validarpdf.validarpdf.class);
+        
+        // Servicios de salud y monitoreo
+        classes.add(HealthCheck.class);
+        
+        // Filtros
+        classes.add(CorsFilter.class);
+        
+        return classes;
+    }
+    
+    @Override
+    public Set<Object> getSingletons() {
+        Set<Object> singletons = new HashSet<>();
+        // Aquí se pueden registrar instancias singleton si es necesario
+        return singletons;
+    }
+    
+    /**
+     * Obtiene información de la configuración de la aplicación
+     */
+    public static ApplicationInfo getApplicationInfo() {
+        return new ApplicationInfo();
+    }
+    
+    /**
+     * Clase interna para información de la aplicación
+     */
+    public static class ApplicationInfo {
+        private final String name = "Firma EC API";
+        private final String version = "2.0.0";
+        private final String description = "API REST para firma y validación digital de documentos PDF";
+        private final String[] supportedFormats = {"PDF"};
+        private final String[] supportedCertificates = {"P12", "PFX"};
+        
+        // Getters
+        public String getName() { return name; }
+        public String getVersion() { return version; }
+        public String getDescription() { return description; }
+        public String[] getSupportedFormats() { return supportedFormats; }
+        public String[] getSupportedCertificates() { return supportedCertificates; }
+        
+        @Override
+        public String toString() {
+            return String.format("%s v%s - %s", name, version, description);
+        }
+    }
+}

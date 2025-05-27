@@ -13,7 +13,6 @@ import java.util.logging.Level;
  * Servicio para manejo de firma digital de PDFs
  * Contiene toda la lógica de negocio relacionada con la firma
  */
-@ApplicationScoped
 public class PdfSigningService {
     
     private static final Logger LOGGER = Logger.getLogger(PdfSigningService.class.getName());

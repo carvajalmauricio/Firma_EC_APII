@@ -16,7 +16,6 @@ import java.util.logging.Level;
  * Servicio para manejo de validación de PDFs firmados
  * Contiene toda la lógica de negocio relacionada con la validación
  */
-@ApplicationScoped
 public class PdfValidationService {
     
     private static final Logger LOGGER = Logger.getLogger(PdfValidationService.class.getName());

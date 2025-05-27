@@ -4,14 +4,190 @@ import com.gadm.tulcan.rest.dto.ValidationRequest;
 import com.gadm.tulcan.rest.dto.ValidationResponse;
 import com.gadm.tulcan.rest.services.PdfValidationService;
 
-import javax.inject.Inject;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 /**
  * Controlador REST para operaciones de validación de PDFs firmados
  * Maneja únicamente las operaciones HTTP, delegando la lógica de negocio al servicio
  */
-@Path(\"/pdf/validate\")\n@Produces(MediaType.APPLICATION_JSON)\n@Consumes(MediaType.APPLICATION_JSON)\npublic class PdfValidationController {\n    \n    private static final Logger LOGGER = Logger.getLogger(PdfValidationController.class.getName());\n    \n    @Inject\n    private PdfValidationService validationService;\n    \n    /**\n     * Endpoint para validar las firmas de un documento PDF\n     * \n     * @param request Datos de la solicitud de validación\n     * @return Respuesta con información de las firmas encontradas\n     */\n    @POST\n    public Response validateDocument(ValidationRequest request) {\n        LOGGER.info(\"[PDF_VALIDATION_CONTROLLER] Recibida solicitud de validación\");\n        \n        try {\n            // Validar que la solicitud no sea nula\n            if (request == null) {\n                LOGGER.warning(\"[PDF_VALIDATION_CONTROLLER] Solicitud nula recibida\");\n                ValidationResponse errorResponse = ValidationResponse.error(\"Solicitud vacía\");\n                return Response.status(Response.Status.BAD_REQUEST)\n                             .entity(errorResponse)\n                             .build();\n            }\n            \n            // Log de la solicitud (sin datos sensibles)\n            LOGGER.info(String.format(\"[PDF_VALIDATION_CONTROLLER] Procesando solicitud: %s\", request.toString()));\n            \n            // Delegar al servicio\n            ValidationResponse response = validationService.validateDocument(request);\n            \n            // Determinar código de respuesta HTTP basado en el resultado\n            Response.Status status = determineHttpStatus(response);\n            \n            LOGGER.info(String.format(\"[PDF_VALIDATION_CONTROLLER] Respuesta enviada con status: %s\", status));\n            \n            return Response.status(status)\n                         .entity(response)\n                         .build();\n                         \n        } catch (Exception e) {\n            LOGGER.severe(String.format(\"[PDF_VALIDATION_CONTROLLER] Error inesperado: %s\", e.getMessage()));\n            \n            ValidationResponse errorResponse = ValidationResponse.error(\"Error interno del servidor\");\n            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)\n                         .entity(errorResponse)\n                         .build();\n        }\n    }\n    \n    /**\n     * Endpoint para verificar rápidamente si un documento tiene firmas válidas\n     * \n     * @param request Datos de la solicitud\n     * @return Respuesta simple indicando si tiene firmas válidas\n     */\n    @POST\n    @Path(\"/quick-check\")\n    public Response quickValidationCheck(ValidationRequest request) {\n        LOGGER.info(\"[PDF_VALIDATION_CONTROLLER] Recibida solicitud de verificación rápida\");\n        \n        try {\n            if (request == null || request.getDocumentoPdf() == null) {\n                return Response.status(Response.Status.BAD_REQUEST)\n                             .entity(java.util.Collections.singletonMap(\"hasValidSignatures\", false))\n                             .build();\n            }\n            \n            boolean hasValidSignatures = validationService.hasValidSignatures(request.getDocumentoPdf());\n            \n            return Response.ok()\n                         .entity(java.util.Collections.singletonMap(\"hasValidSignatures\", hasValidSignatures))\n                         .build();\n                         \n        } catch (Exception e) {\n            LOGGER.warning(String.format(\"[PDF_VALIDATION_CONTROLLER] Error en verificación rápida: %s\", e.getMessage()));\n            \n            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)\n                         .entity(java.util.Collections.singletonMap(\"hasValidSignatures\", false))\n                         .build();\n        }\n    }\n    \n    /**\n     * Endpoint de información del servicio de validación\n     * \n     * @return Información básica del servicio\n     */\n    @GET\n    @Path(\"/info\")\n    @Produces(MediaType.TEXT_PLAIN)\n    public Response getServiceInfo() {\n        String info = \"Servicio de Validación de PDFs Firmados\\n\" +\n                     \"Versión: 2.0\\n\" +\n                     \"Estado: Activo\\n\" +\n                     \"Formatos soportados: PDF con firmas digitales\\n\" +\n                     \"Funciones: Validación de firmas, verificación de certificados\";\n        \n        return Response.ok(info).build();\n    }\n    \n    /**\n     * Endpoint de estado del servicio\n     * \n     * @return Estado actual del servicio\n     */\n    @GET\n    @Path(\"/status\")\n    public Response getServiceStatus() {\n        try {\n            // Obtener estadísticas del servicio\n            PdfValidationService.ServiceStats stats = validationService.getServiceStats();\n            \n            java.util.Map<String, Object> statusMap = new java.util.HashMap<>();\n            statusMap.put(\"status\", \"UP\");\n            statusMap.put(\"service\", \"PDF Validation Service\");\n            statusMap.put(\"version\", \"2.0\");\n            statusMap.put(\"timestamp\", System.currentTimeMillis());\n            statusMap.put(\"stats\", stats);\n            \n            return Response.ok().entity(statusMap).build();\n                         \n        } catch (Exception e) {\n            LOGGER.warning(String.format(\"[PDF_VALIDATION_CONTROLLER] Error obteniendo estado: %s\", e.getMessage()));\n            \n            java.util.Map<String, Object> errorMap = new java.util.HashMap<>();\n            errorMap.put(\"status\", \"DOWN\");\n            errorMap.put(\"error\", \"Service temporarily unavailable\");\n            \n            return Response.status(Response.Status.SERVICE_UNAVAILABLE)\n                         .entity(errorMap)\n                         .build();\n        }\n    }\n    \n    /**\n     * Determina el código de estado HTTP apropiado basado en la respuesta del servicio\n     */\n    private Response.Status determineHttpStatus(ValidationResponse response) {\n        if (response == null) {\n            return Response.Status.INTERNAL_SERVER_ERROR;\n        }\n        \n        if (response.isExitoso()) {\n            return Response.Status.OK;\n        }\n        \n        // Analizar el mensaje para determinar el tipo de error\n        String mensaje = response.getMensaje();\n        if (mensaje != null) {\n            if (mensaje.toLowerCase().contains(\"validación\") || \n                mensaje.toLowerCase().contains(\"validation\") ||\n                mensaje.toLowerCase().contains(\"requerido\") ||\n                mensaje.toLowerCase().contains(\"vacío\")) {\n                return Response.Status.BAD_REQUEST;\n            }\n            \n            if (mensaje.toLowerCase().contains(\"no se encontraron firmas\")) {\n                return Response.Status.NOT_FOUND;\n            }\n            \n            if (mensaje.toLowerCase().contains(\"interno\") || \n                mensaje.toLowerCase().contains(\"internal\")) {\n                return Response.Status.INTERNAL_SERVER_ERROR;\n            }\n        }\n        \n        // Por defecto, error interno del servidor\n        return Response.Status.INTERNAL_SERVER_ERROR;\n    }\n}"
+@Path("/pdf/validate")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class PdfValidationController {
+    
+    private static final Logger LOGGER = Logger.getLogger(PdfValidationController.class.getName());
+    
+    private PdfValidationService validationService = new PdfValidationService();
+    
+    /**
+     * Endpoint para validar las firmas de un documento PDF
+     * 
+     * @param request Datos de la solicitud de validación
+     * @return Respuesta con información de las firmas encontradas
+     */
+    @POST
+    public Response validateDocument(ValidationRequest request) {
+        LOGGER.info("[PDF_VALIDATION_CONTROLLER] Recibida solicitud de validación");
+        
+        try {
+            // Validar que la solicitud no sea nula
+            if (request == null) {
+                LOGGER.warning("[PDF_VALIDATION_CONTROLLER] Solicitud nula recibida");
+                ValidationResponse errorResponse = ValidationResponse.error("Solicitud vacía");
+                return Response.status(Response.Status.BAD_REQUEST)
+                             .entity(errorResponse)
+                             .build();
+            }
+            
+            // Log de la solicitud (sin datos sensibles)
+            LOGGER.info(String.format("[PDF_VALIDATION_CONTROLLER] Procesando solicitud: %s", request.toString()));
+            
+            // Delegar al servicio
+            ValidationResponse response = validationService.validateDocument(request);
+            
+            // Determinar código de respuesta HTTP basado en el resultado
+            Response.Status status = determineHttpStatus(response);
+            
+            LOGGER.info(String.format("[PDF_VALIDATION_CONTROLLER] Respuesta enviada con status: %s", status));
+            
+            return Response.status(status)
+                         .entity(response)
+                         .build();
+                         
+        } catch (Exception e) {
+            LOGGER.severe(String.format("[PDF_VALIDATION_CONTROLLER] Error inesperado: %s", e.getMessage()));
+            
+            ValidationResponse errorResponse = ValidationResponse.error("Error interno del servidor");
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                         .entity(errorResponse)
+                         .build();
+        }
+    }
+    
+    /**
+     * Endpoint para verificar rápidamente si un documento tiene firmas válidas
+     * 
+     * @param request Datos de la solicitud
+     * @return Respuesta simple indicando si tiene firmas válidas
+     */
+    @POST
+    @Path("/quick-check")
+    public Response quickValidationCheck(ValidationRequest request) {
+        LOGGER.info("[PDF_VALIDATION_CONTROLLER] Recibida solicitud de verificación rápida");
+        
+        try {
+            if (request == null || request.getDocumentoPdf() == null) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                             .entity(Collections.singletonMap("hasValidSignatures", false))
+                             .build();
+            }
+            
+            boolean hasValidSignatures = validationService.hasValidSignatures(request.getDocumentoPdf());
+            
+            return Response.ok()
+                         .entity(Collections.singletonMap("hasValidSignatures", hasValidSignatures))
+                         .build();
+                         
+        } catch (Exception e) {
+            LOGGER.warning(String.format("[PDF_VALIDATION_CONTROLLER] Error en verificación rápida: %s", e.getMessage()));
+            
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                         .entity(Collections.singletonMap("hasValidSignatures", false))
+                         .build();
+        }
+    }
+    
+    /**
+     * Endpoint de información del servicio de validación
+     * 
+     * @return Información básica del servicio
+     */
+    @GET
+    @Path("/info")
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response getServiceInfo() {
+        String info = "Servicio de Validación de PDFs Firmados\n" +
+                     "Versión: 2.0\n" +
+                     "Estado: Activo\n" +
+                     "Formatos soportados: PDF con firmas digitales\n" +
+                     "Funciones: Validación de firmas, verificación de certificados";
+        
+        return Response.ok(info).build();
+    }
+    
+    /**
+     * Endpoint de estado del servicio
+     * 
+     * @return Estado actual del servicio
+     */
+    @GET
+    @Path("/status")
+    public Response getServiceStatus() {
+        try {
+            // Obtener estadísticas del servicio
+            PdfValidationService.ServiceStats stats = validationService.getServiceStats();
+            
+            Map<String, Object> statusMap = new HashMap<>();
+            statusMap.put("status", "UP");
+            statusMap.put("service", "PDF Validation Service");
+            statusMap.put("version", "2.0");
+            statusMap.put("timestamp", System.currentTimeMillis());
+            statusMap.put("stats", stats);
+            
+            return Response.ok().entity(statusMap).build();
+                         
+        } catch (Exception e) {
+            LOGGER.warning(String.format("[PDF_VALIDATION_CONTROLLER] Error obteniendo estado: %s", e.getMessage()));
+            
+            Map<String, Object> errorMap = new HashMap<>();
+            errorMap.put("status", "DOWN");
+            errorMap.put("error", "Service temporarily unavailable");
+            
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                         .entity(errorMap)
+                         .build();
+        }
+    }
+    
+    /**
+     * Determina el código de estado HTTP apropiado basado en la respuesta del servicio
+     */
+    private Response.Status determineHttpStatus(ValidationResponse response) {
+        if (response == null) {
+            return Response.Status.INTERNAL_SERVER_ERROR;
+        }
+        
+        if (response.isExitoso()) {
+            return Response.Status.OK;
+        }
+        
+        // Analizar el mensaje para determinar el tipo de error
+        String mensaje = response.getMensaje();
+        if (mensaje != null) {
+            if (mensaje.toLowerCase().contains("validación") || 
+                mensaje.toLowerCase().contains("validation") ||
+                mensaje.toLowerCase().contains("requerido") ||
+                mensaje.toLowerCase().contains("vacío")) {
+                return Response.Status.BAD_REQUEST;
+            }
+            
+            if (mensaje.toLowerCase().contains("no se encontraron firmas")) {
+                return Response.Status.NOT_FOUND;
+            }
+            
+            if (mensaje.toLowerCase().contains("interno") || 
+                mensaje.toLowerCase().contains("internal")) {
+                return Response.Status.INTERNAL_SERVER_ERROR;
+            }
+        }
+        
+        // Por defecto, error interno del servidor
+        return Response.Status.INTERNAL_SERVER_ERROR;
+    }
+}
