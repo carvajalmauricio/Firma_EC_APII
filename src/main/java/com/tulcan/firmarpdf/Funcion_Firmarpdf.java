@@ -52,15 +52,58 @@ public class Funcion_Firmarpdf {
     private static  String PosicionY ;
     private static  String Pagina ;
 //    private static final String FILE = "/home/mfernandez/Descargas/test/mozilla.pdf.p7m";
-      public SalidasFirmarpdf Invocador(String Documento, String Certificado, String Contraseña,int pagina, int UbicacionHorizontal,int UbicacionVertical)throws KeyStoreException, Exception {
+      public SalidasFirmarpdf Invocador(String DocumentoBase64, String CertificadoBase64, String Contraseña,int pagina, int UbicacionHorizontal,int UbicacionVertical)throws KeyStoreException, Exception {
       PosicionX=Integer.toString(UbicacionHorizontal);
       PosicionY=Integer.toString(UbicacionVertical);
       Pagina=Integer.toString(pagina);
       PASSWORD=Contraseña;
-        FILE = Documento; 
-        ARCHIVO=Certificado;
-
-      return firmarDocumento(FILE);
+      
+      // Crear archivos temporales desde Base64
+      try {
+          // Crear archivo temporal para PDF
+          File tempPdfFile = File.createTempFile("pdf_temp_", ".pdf");
+          byte[] pdfBytes = java.util.Base64.getDecoder().decode(DocumentoBase64);
+          try (java.io.FileOutputStream pdfFos = new java.io.FileOutputStream(tempPdfFile)) {
+              pdfFos.write(pdfBytes);
+          }
+          FILE = tempPdfFile.getAbsolutePath();
+          
+          // Crear archivo temporal para certificado
+          File tempCertFile = File.createTempFile("cert_temp_", ".p12");
+          byte[] certBytes = java.util.Base64.getDecoder().decode(CertificadoBase64);
+          try (java.io.FileOutputStream certFos = new java.io.FileOutputStream(tempCertFile)) {
+              certFos.write(certBytes);
+          }
+          ARCHIVO = tempCertFile.getAbsolutePath();
+          
+          System.out.println("[FIRMA] Archivos temporales creados exitosamente");
+          
+          // Procesar firma
+          SalidasFirmarpdf resultado = firmarDocumento(FILE);
+          
+          // Limpiar archivos temporales
+          if (tempPdfFile.exists()) {
+              tempPdfFile.delete();
+          }
+          if (tempCertFile.exists()) {
+              tempCertFile.delete();
+          }
+          
+          return resultado;
+          
+      } catch (IllegalArgumentException e) {
+          System.err.println("[FIRMA] Error: Datos Base64 inválidos - " + e.getMessage());
+          SalidasFirmarpdf error = new SalidasFirmarpdf();
+          error.setExitoso(false);
+          error.setMensaje("Error: Los datos Base64 proporcionados no son válidos");
+          return error;
+      } catch (IOException e) {
+          System.err.println("[FIRMA] Error al crear archivos temporales: " + e.getMessage());
+          SalidasFirmarpdf error = new SalidasFirmarpdf();
+          error.setExitoso(false);
+          error.setMensaje("Error interno al procesar los archivos");
+          return error;
+      }
       }
       private static Properties parametros() throws IOException {
         //QR
@@ -181,10 +224,14 @@ public class Funcion_Firmarpdf {
         // LIMPIAR LA CLAVE PRIVADA DE LA MEMORIA (importante por seguridad)
         key = null;
         
-        ////// Guardar archivo firmado
-        String nombreDocumento = FileUtils.crearNombreFirmado(new File(file), FileUtils.getExtension(signed));
-        java.io.FileOutputStream fos = new java.io.FileOutputStream(nombreDocumento);
-        System.out.println("[FIRMA] Archivo firmado guardado: " + new File(nombreDocumento).getName());
+        ////// Guardar archivo firmado con nombre seguro
+        // Generar nombre de archivo seguro
+        String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
+        String nombreSeguro = "documento_firmado_" + timestamp + ".pdf";
+        String rutaCompleta = System.getProperty("java.io.tmpdir") + File.separator + nombreSeguro;
+        
+        java.io.FileOutputStream fos = new java.io.FileOutputStream(rutaCompleta);
+        System.out.println("[FIRMA] Archivo firmado guardado: " + nombreSeguro);
         /*
 //Abrir documento
             new java.util.Timer().schedule(new java.util.TimerTask() {
@@ -210,18 +257,25 @@ public class Funcion_Firmarpdf {
         
         // Leer el archivo firmado y convertirlo a Base64
         try {
-            byte[] pdfFirmadoBytes = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(nombreDocumento));
+            byte[] pdfFirmadoBytes = java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(rutaCompleta));
             String pdfBase64 = java.util.Base64.getEncoder().encodeToString(pdfFirmadoBytes);
             
             // Configurar respuesta exitosa
             resultado.setExitoso(true);
             resultado.setMensaje("Documento firmado exitosamente");
-            resultado.setDocFirmado(nombreDocumento);
+            resultado.setDocFirmado(rutaCompleta);
             resultado.setDocOriginal(ARCHIVO);
             resultado.setPdfFirmadoBase64(pdfBase64);
-            resultado.setNombreArchivo(new File(nombreDocumento).getName());
+            resultado.setNombreArchivo(nombreSeguro);  // Usar nombre seguro
             
             System.out.println("[FIRMA] PDF convertido a Base64 exitosamente. Tamaño: " + pdfBase64.length() + " caracteres");
+            
+            // Limpiar archivo temporal del resultado
+            File archivoFirmado = new File(rutaCompleta);
+            if (archivoFirmado.exists()) {
+                archivoFirmado.delete();
+                System.out.println("[FIRMA] Archivo temporal limpiado");
+            }
             
         } catch (Exception e) {
             System.err.println("[FIRMA] Error al convertir PDF a Base64: " + e.getMessage());
