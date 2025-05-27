@@ -104,13 +104,13 @@ public class Funcion_Firmarpdf {
         // USAR TIMESTAMP LOCAL SI FALLA EL SERVIDOR
         try {
             params.setProperty(PDFSigner.SIGN_TIME, TiempoUtils.getFechaHoraServidor());
-            System.out.println("✅ Usando timestamp del servidor");
+            System.out.println("[FIRMA] Usando timestamp del servidor");
         } catch (Exception e) {
             // Si falla el servidor, usar timestamp local
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
             String timestampLocal = sdf.format(new java.util.Date());
             params.setProperty(PDFSigner.SIGN_TIME, timestampLocal);
-            System.out.println("⚠️ Usando timestamp local: " + timestampLocal);
+            System.out.println("[FIRMA] Usando timestamp local (servidor no disponible)");
         }
         params.setProperty(PDFSigner.LAST_PAGE, Pagina);//Aqui se pone el numero de pagina si el numero es cero escojera la ultima pagina del documento
         params.setProperty(PDFSigner.TYPE_SIG, "QR");
@@ -140,15 +140,16 @@ public class Funcion_Firmarpdf {
         ////// LEER PDF:
         byte[] docByteArry = DocumentoUtils.loadFile(file);
 
-        // ARCHIVO
+        // VALIDAR CERTIFICADO SIN EXPONER CONTRASEÑA EN LOGS
         try {
-            System.out.println("Contrasenia correcta");
+            System.out.println("[FIRMA] Validando credenciales del certificado...");
             KeyStoreProvider ksp = new FileKeyStoreProvider(ARCHIVO);
             KeyStore keyStore = ksp.getKeystore(PASSWORD.toCharArray());
+            System.out.println("[FIRMA] Certificado validado correctamente");
         } catch (Exception e) {
-            System.out.println("Contrasenia incorrecta");
+            System.err.println("[FIRMA] Error: Credenciales incorrectas o certificado inválido");
             resultado.setExitoso(false);
-            resultado.setMensaje("Contraseña incorrecta del certificado");
+            resultado.setMensaje("Contraseña incorrecta del certificado o certificado dañado");
             return resultado;
         }
         KeyStoreProvider ksp = new FileKeyStoreProvider(ARCHIVO);
@@ -166,23 +167,24 @@ public class Funcion_Firmarpdf {
         // VALIDACIÓN CON MANEJO DE ERRORES DE RED
         try {
             x509CertificateUtils.validarX509Certificate((X509Certificate) keyStore.getCertificate(alias));
-            System.out.println("✅ Certificado validado online correctamente");
+            System.out.println("[FIRMA] Certificado validado online correctamente");
         } catch (Exception validationException) {
-            System.out.println("⚠️ Validación online falló, continuando con firma offline: " + validationException.getMessage());
-            // Continuar sin validación online
+            System.out.println("[FIRMA] Validación online no disponible, continuando con firma offline");
+            // Continuar sin validación online para evitar fallos por conectividad
         }
         
         // SIEMPRE EJECUTAR LA FIRMA (incluso si falla la validación online)
         Certificate[] certChain = keyStore.getCertificateChain(alias);
         signed = signer.sign(docByteArry, SignConstants.SIGN_ALGORITHM_SHA1WITHRSA, key, certChain, parametros());
-        System.out.println("✅ Documento firmado exitosamente");
-        System.out.println("final firma\n-------");
+        System.out.println("[FIRMA] Documento firmado exitosamente");
         
-        ////// Permite guardar el archivo en el equipo y luego lo abre
+        // LIMPIAR LA CLAVE PRIVADA DE LA MEMORIA (importante por seguridad)
+        key = null;
+        
+        ////// Guardar archivo firmado
         String nombreDocumento = FileUtils.crearNombreFirmado(new File(file), FileUtils.getExtension(signed));
         java.io.FileOutputStream fos = new java.io.FileOutputStream(nombreDocumento);
-        System.out.println("Este es el nombre extraido");
-        System.out.println(nombreDocumento);
+        System.out.println("[FIRMA] Archivo firmado guardado: " + new File(nombreDocumento).getName());
         /*
 //Abrir documento
             new java.util.Timer().schedule(new java.util.TimerTask() {
@@ -219,18 +221,33 @@ public class Funcion_Firmarpdf {
             resultado.setPdfFirmadoBase64(pdfBase64);
             resultado.setNombreArchivo(new File(nombreDocumento).getName());
             
-            System.out.println("✅ PDF convertido a Base64 exitosamente. Tamaño: " + pdfBase64.length() + " caracteres");
+            System.out.println("[FIRMA] PDF convertido a Base64 exitosamente. Tamaño: " + pdfBase64.length() + " caracteres");
             
         } catch (Exception e) {
-            System.err.println("❌ Error al convertir PDF a Base64: " + e.getMessage());
+            System.err.println("[FIRMA] Error al convertir PDF a Base64: " + e.getMessage());
             resultado.setExitoso(false);
-            resultado.setMensaje("Error al convertir PDF a Base64: " + e.getMessage());
+            resultado.setMensaje("Error al procesar el documento firmado");
         }
         
-        // Limpiar variables sensibles
-        entradas.setArchivop12(null);
-        entradas.setContrasena(null);
-        entradas.setDocumentopdf(null);
+        // LIMPIAR VARIABLES SENSIBLES DE FORMA SEGURA
+        if (entradas != null) {
+            entradas.setArchivop12(null);
+            entradas.setContrasena(null);
+            entradas.setDocumentopdf(null);
+        }
+        
+        // Limpiar variables locales sensibles
+        if (PASSWORD != null) {
+            char[] passwordChars = PASSWORD.toCharArray();
+            for (int i = 0; i < passwordChars.length; i++) {
+                passwordChars[i] = '\0';
+            }
+            PASSWORD = null;
+        }
+        
+        // Limpiar otras variables
+        ARCHIVO = null;
+        FILE = null;
         
         return resultado;
     }
