@@ -1,10 +1,16 @@
 package com.gadm.tulcan.rest.controllers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gadm.tulcan.rest.dto.SigningRequest;
+import com.gadm.tulcan.rest.dto.SecureSigningRequest;
 import com.gadm.tulcan.rest.dto.SigningResponse;
 import com.gadm.tulcan.rest.services.PdfSigningService;
+import com.gadm.tulcan.rest.utils.SecurityUtils;
+import io.jsonwebtoken.Claims;
 
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.HashMap;
@@ -12,8 +18,8 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * Controlador REST para operaciones de firma digital de PDFs
- * Maneja únicamente las operaciones HTTP, delegando la lógica de negocio al servicio
+ * Controlador REST seguro para operaciones de firma digital de PDFs
+ * Versión 3.0: JWT + Cifrado AES + Request Signing
  */
 @Path("/pdf/sign")
 @Produces(MediaType.APPLICATION_JSON)
@@ -23,6 +29,7 @@ public class PdfSigningController {
     private static final Logger LOGGER = Logger.getLogger(PdfSigningController.class.getName());
     
     private PdfSigningService signingService = new PdfSigningService();
+    private ObjectMapper objectMapper = new ObjectMapper();
     
     /**
      * Endpoint para firmar un documento PDF
