@@ -1,4 +1,4 @@
-package com.tulcan.rest.dto;
+package com.gadm.tulcan.rest.dto;
 
 import javax.xml.bind.annotation.XmlRootElement;
 

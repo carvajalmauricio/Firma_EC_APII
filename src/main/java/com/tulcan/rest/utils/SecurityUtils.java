@@ -1,4 +1,4 @@
-package com.tulcan.rest.utils;
+package com.gadm.tulcan.rest.utils;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
